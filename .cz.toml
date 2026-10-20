@@ -1,0 +1,7 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "scm"
+tag_format = "$version"
+version_scheme = "semver"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"

@@ -1,0 +1,6 @@
+black
+checkov
+pre-commit
+commitizen
+pylint
+pytest

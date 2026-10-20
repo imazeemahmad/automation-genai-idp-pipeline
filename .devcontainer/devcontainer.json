@@ -1,0 +1,67 @@
+{
+    "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
+    "features": {
+        "ghcr.io/example-org/devcontainer-features/example-root-ca:1": {},
+        "ghcr.io/example-org/devcontainer-features/opentofu-tenv:1": {},
+        "ghcr.io/devcontainers/features/aws-cli:1": {},
+        "ghcr.io/example-org/devcontainer-features/saml2aws:1": {
+            "azure_app_id": "00000000-0000-0000-0000-000000000000"
+        },
+        "ghcr.io/devcontainers-contrib/features/tflint:1": {},
+        "ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.12"
+        },
+        "ghcr.io/devcontainers/features/common-utils:2": {},
+        "ghcr.io/dhoeric/features/trivy:1": {},
+        "ghcr.io/jungaretti/features/vim:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "amazonwebservices.aws-toolkit-vscode",
+                "hashicorp.terraform",
+                "github.copilot",
+                "github.copilot-chat",
+                "github.vscode-github-actions",
+                "ms-vscode-remote.remote-containers",
+                "ms-python.python",
+                "ms-python.black-formatter"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "editor.formatOnSaveMode": "modifications",
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                },
+                "files.autoSave": "onFocusChange",
+                "files.eol": "\n",
+                "files.trimTrailingWhitespace": true,
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter"
+                },
+                "python.analysis.extraPaths": [
+                    "app_src/app/lambdas"
+                ],
+                "python.venvPath": "${containerWorkspaceFolder}/.venv",
+                "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+                "python.terminal.activateEnvironment": true,
+                "python.terminal.activateEnvInCurrentTerminal": true
+            }
+        },
+        "codespaces": {
+            "openFiles": [
+                "README.md",
+                "docs/workflows/README.md"
+            ]
+        }
+    },
+    "postCreateCommand": "bash .devcontainer/postStartCommand.sh",
+    "containerEnv": {
+        "AWS_DEFAULT_REGION": "eu-west-1",
+        "AWS_REGION": "eu-west-1",
+        "AWS_PROFILE": "saml"
+    }
+}
