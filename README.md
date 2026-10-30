@@ -1,6 +1,42 @@
-# GenAI Automation – Procurement Data Booster
+# GenAI Automation – Procurement Data IDP
 
 Automates procurement purchase order processing for grand_org. The system ingests purchase order data from Coupa, stores and processes it via AWS Lambda and DynamoDB, and enriches it with AI-powered biomarker extraction using Amazon Bedrock.
+
+```mermaid
+flowchart TD
+    EB["EventBridge schedule<br/>(per workflow, every 12h)"] --> SF
+    MAN["Manual start<br/>(optional PO list)"] --> SF
+
+    subgraph SF["Step Function — one per workflow: biomarker / vaccine / lnd / tco"]
+        direction TB
+        subgraph H["Map: per HACAT code"]
+            direction TB
+            S1["1 CoupaPORetrieval<br/>Snowflake → PO + file list<br/>(DynamoDB: PENDING)"]
+            subgraph P["Map: per PO"]
+                direction TB
+                S2["2 awsCopyPoFiles<br/>S3 bucket → data bucket /incoming<br/>(cross-account)"]
+                subgraph F["Map: per file"]
+                    direction TB
+                    S3["3 ConvertPoFile<br/>Office → PDF (LibreOffice Lambda)"]
+                    S4["4 OcrPoFile<br/>Bedrock Data Automation (async)"]
+                    S5{"5 OcrPoFileGetStatus<br/>done?"}
+                    S3 --> S4 --> S5
+                    S5 -- "no: wait 30s (max 20)" --> S5
+                end
+                S6["6 ConsolidatePoData<br/>OCR markdown → Bedrock prompt → JSON"]
+                S7["7 ExportPoOutputData<br/>JSON → S3 bucket (cross-account)"]
+                S2 --> F
+                S5 -- "markdown" --> S6 --> S7
+            end
+            S1 --> S2
+        end
+    end
+
+    SF -. "any failure" .-> FAIL["SNS tech alert email<br/>+ status FAILED in DynamoDB"]
+
+    classDef fail fill:#f8cecc,stroke:#b85450;
+    class FAIL fail;
+```
 
 ## Documentation
 
