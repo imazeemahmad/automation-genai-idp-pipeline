@@ -1,0 +1,7 @@
+# Minimal dependencies for the LibreOffice converter Lambda
+# NOTE: This container is built from a plain Python base image (not the AWS
+# Lambda managed runtime), so boto3 is NOT provided automatically and must be
+# installed explicitly.
+boto3>=1.43.112,<2.0.0
+aws-lambda-powertools>=3.35.0,<4.0.0
+openpyxl>=3.1.5,<4.0.0

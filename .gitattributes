@@ -1,0 +1,28 @@
+# Normalise line endings for all text files
+* text=auto
+
+# Explicitly text — always LF in the repo
+*.py     text eol=lf
+*.tf     text eol=lf
+*.tfvars text eol=lf
+*.hcl    text eol=lf
+*.sh     text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.toml   text eol=lf
+*.cfg    text eol=lf
+*.ini    text eol=lf
+Dockerfile text eol=lf
+
+# Binary — do not diff or merge as text
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.xlsx binary
+*.pptx binary

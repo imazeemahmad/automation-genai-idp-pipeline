@@ -1,13 +1,18 @@
 {
     "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
     "features": {
-        "ghcr.io/example-org/devcontainer-features/example-root-ca:1": {},
-        "ghcr.io/example-org/devcontainer-features/opentofu-tenv:1": {},
+        "ghcr.io/grand_org-innersource/devcontainer-features/grand_org-root-ca:1": {},
+        "ghcr.io/grand_org-innersource/devcontainer-features/opentofu-tenv:1": {},
         "ghcr.io/devcontainers/features/aws-cli:1": {},
-        "ghcr.io/example-org/devcontainer-features/saml2aws:1": {
-            "azure_app_id": "00000000-0000-0000-0000-000000000000"
+        "ghcr.io/grand_org-innersource/devcontainer-features/saml2aws:1": {
+            "azure_app_id": "20a696af-7dd3-4281-962f-48cebc9024a8"
         },
-        "ghcr.io/devcontainers-contrib/features/tflint:1": {},
+        "ghcr.io/devcontainers/features/terraform:1": {
+            "installTerraformDocs": "true",
+            "version": "1.15.7",
+            "terragrunt": "none",
+            "customDownloadServer": "https://releases.hashicorp.com"
+        },
         "ghcr.io/devcontainers/features/sshd:1": {
             "version": "latest"
         },

@@ -1,0 +1,9 @@
+# Bucket logging is managed at the organization level, not per-application
+AVD-AWS-0089
+
+# Lambda log groups are created by the internal define_lambdas module (READ-ONLY)
+# which does not support CMK encryption on CloudWatch log groups
+AVD-AWS-0017
+
+# Lambda tracing mode is managed by the internal define_lambdas module (READ-ONLY)
+AVD-AWS-0066

@@ -1,4 +1,0 @@
-# Bucket must starts with tfstate
-bucket="tfstate-000000-eu-west-1-example"
-region="eu-west-1"
-key="App-ProcurementBoosterData.tfstate"

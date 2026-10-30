@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Jira board
+    url: https://grand_org.atlassian.net/
+    about: For work tracked in Jira, please create a ticket on the team board instead.

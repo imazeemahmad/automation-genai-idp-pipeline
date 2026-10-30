@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 'LibreOffice Converter — Build & Push'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - uat
+      - main
+    paths:
+      - 'app_src/app/lambdas_container/libreoffice_converter/**'
+
+concurrency:
+  group: libreoffice-converter-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ENV: ${{ github.ref == 'refs/heads/main' && 'prod' || github.ref == 'refs/heads/uat' && 'uat' || 'dev' }}
+  APP_NAME_SHORT: 'idp'
+  REGION_SHORT: 'emea'
+
+# Restrictive default at workflow level; jobs elevate only what they need.
+permissions:
+  contents: read
+
+jobs:
+  build-push:
+    name: 'Build & Push to ECR'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 30
+    environment: ${{ github.ref == 'refs/heads/main' && 'PROD' || github.ref == 'refs/heads/uat' && 'UAT' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-aws-env
+        with:
+          aws-role: ${{ vars.AWS_DEV_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # The runner is arm64 but this image is x86_64 only (LibreOffice ships no
+      # ARM64 Linux RPM archive). Register QEMU emulators so the default buildx
+      # builder can cross-build linux/amd64.
+      #
+      # NOTE: we deliberately do NOT use docker/setup-buildx-action here. That
+      # action spins up an isolated docker-container builder that does not
+      # inherit the grand_org root CA installed on the host by setup-root-ca,
+      # which breaks TLS when pulling the Artifactory base image / LibreOffice
+      # archive. Using the host's default builder keeps the CA trust intact.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(cat app_src/app/lambdas_container/libreoffice_converter/version.txt | tr -d '[:space:]')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Determine ECR repository name
+        id: ecr
+        run: |
+          ECR_REPO="app-${{ env.APP_NAME_SHORT }}-${{ env.REGION_SHORT }}-libreoffice-converter-${{ env.ENV }}"
+          echo "repo=${ECR_REPO}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push to ECR
+        run: |
+          ECR_REGISTRY="${{ steps.ecr_login.outputs.registry }}"
+          ECR_REPO_URI="${ECR_REGISTRY}/${{ steps.ecr.outputs.repo }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          uname -m
+          docker buildx ls
+
+          # Pre-pull the Artifactory base image with the host daemon (which trusts
+          # the grand_org root CA). This warms the cache and surfaces any TLS issue
+          # here rather than deep inside the build. --platform is required because
+          # the runner is arm64 but we build the x86_64 variant.
+          docker pull --platform linux/amd64 \
+            docker-innersource-remote.artifactory.grand_org.com/python:3.12
+
+          # Build and push directly with Docker manifest v2 format (Lambda requires
+          # oci-mediatypes=false — Lambda rejects OCI image manifests).
+          # Dedicated repo means clean version tags (no image-name prefix).
+          docker buildx build \
+            --provenance=false \
+            --platform linux/amd64 \
+            --output "type=image,oci-mediatypes=false,push=true,name=${ECR_REPO_URI}:${VERSION}" \
+            -f app_src/app/lambdas_container/libreoffice_converter/Dockerfile \
+            .
+
+          echo "Pushed ${ECR_REPO_URI}:${VERSION}"
+
+      - name: Job Summary
+        if: always()
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "## 🐳 LibreOffice Converter" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Repository** | \`${{ steps.ecr.outputs.repo }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platform** | \`linux/x86_64\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`${{ env.ENV }}\` |" >> $GITHUB_STEP_SUMMARY

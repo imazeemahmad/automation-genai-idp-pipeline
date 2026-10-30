@@ -1,0 +1,6 @@
+---
+model_id: "eu.anthropic.claude-sonnet-5"
+max_tokens: 4096
+temperature: 0
+top_p: 0.9
+system_prompt: "Anwser in JSON format using the schema. DO not add additional comment. DO NOT add markdown formatting."

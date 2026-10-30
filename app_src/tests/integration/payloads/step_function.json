@@ -1,0 +1,5 @@
+{
+  "workflow_name": "manual-test",
+  "hacat_list": ["HC1001"],
+  "po_numbers": ["E005472389"]
+}

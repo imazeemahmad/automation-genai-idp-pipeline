@@ -1,0 +1,247 @@
+{
+  "LearningInstitutes": [
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Leadership Lab",
+      "Service Area": "Leadership Development",
+      "Service Area Description": "Covers all leadership and executive development programs including Leading Others (management development for people managers L3-6), Future Leaders (leadership/management development for senior leaders L4-5), and Leading grand_org (executive development offers for L1-2). Includes programs like Unleash, Leadership Presence Program, BOOST, Evolve, Management Essentials, Performance Feedback & Courageous Transparency, Leadership Framework Activation, Aspiring Manager Journey, Brilliant Manager Learning Blog, and Future Ready Leadership.",
+      "Target Audience": "All grand_org employees ",
+      "Key Keywords": "leadership, executive, manager development, leading others, future leaders, leading grand_org, management development, people managers, senior leaders",
+      "Key Indicators": "Unleash, Leadership Presence Program, BOOST, Evolve, Management Essentials, Performance Feedback, Leadership Framework, Aspiring Manager Journey, Future Ready Leadership, McLaren Accelerator, Leading grand_org, Executive Onboarding"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Leadership Lab",
+      "Service Area": "Change Management & Transformation",
+      "Service Area Description": "Focuses on upskilling the enterprise on transformation and change management capabilities. Covers transformation excellence, leading through complexity, and transformation presence programs. Develops leaders' ability to navigate organizational change and drive transformation initiatives.",
+      "Target Audience": "All grand_org employees ",
+      "Key Keywords": "transformation, change management, transformation upskilling, transformation excellence, leading through complexity, transformation presence",
+      "Key Indicators": "Transformation Presence Program, Leading through Complexity, Transformation Excellence, Change Management Training"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Leadership Lab",
+      "Service Area": "Team Development & High Performance",
+      "Service Area Description": "Covers team development and high-performance team (HPT) building. Includes psychological safety, team dynamics, and team effectiveness programs. Focuses on developing teams to deliver exceptional results and foster collaborative environments.",
+      "Target Audience": "All grand_org employees ",
+      "Key Keywords": "team development, high-performance team, HPT, psychological safety, team effectiveness, team dynamics, coaching, mentoring, executive onboarding, team coaching",
+      "Key Indicators": "High Performing Team, Psychological Safety, Team Coaching, Executive Onboarding Program, Team Development"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Core Skills Lab",
+      "Service Area": "Personal Skills",
+      "Service Area Description": "Covers personal development, learning agility, wellbeing, career development, cross-cultural management, and inclusion & belonging. Provides a large collection of personal learning journeys and channels to support individual development aligned with company strategy.",
+      "Target Audience": "All grand_org employees",
+      "Key Keywords": "personal development, wellbeing, career development, learning agility, cross-cultural, inclusion, belonging, diversity, personal learning journeys, Insights Colour Soft Blocks",
+      "Key Indicators": "Learning Agility, Wellbeing Programs, Career Development, Cross-cultural Management, Inclusion & Belonging, Personal Learning Journeys"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Core Skills Lab",
+      "Service Area": "Partnership Skills",
+      "Service Area Description": "Covers communication skills, language training, and collaboration capabilities. Includes interpersonal communication, language development (English, French, other languages), and partnership/collaboration skills. Provides collection of partnership skills journeys and modules.",
+      "Target Audience": "All grand_org employees",
+      "Key Keywords": "communication, language training, collaboration, partnership skills, interpersonal communication, language development, communication skills",
+      "Key Indicators": "Communication Training, Language Training, Collaboration Skills, Partnership Skills Journeys & Modules"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Core Skills Lab",
+      "Service Area": "Pioneering Skills",
+      "Service Area Description": "Covers productivity and project management skills at individual contributor level. Includes productivity tools, techniques, and project management fundamentals. Provides collection of pioneering skills journeys and modules.",
+      "Target Audience": "All grand_org employees",
+      "Key Keywords": "productivity, project management, pioneering skills, productivity tools, project management fundamentals",
+      "Key Indicators": "Productivity Training, Project Management, Pioneering Skills Journeys & Modules"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Digital Skills & Certification",
+      "Service Area Description": "Covers digital literacy, digital transformation, digital certification programs, AI/ML basics, data analytics, cybersecurity awareness, and digital tools training. Designed for employees in Digital function to build future-ready digital capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "digital certification, digital literacy, digital transformation, AI/ML, data analytics, cybersecurity, digital tools, digital skills",
+      "Key Indicators": "Digital Certification Programs, Digital Literacy Training, AI/ML Basics, Data Analytics, Cybersecurity Awareness"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Finance Upskilling",
+      "Service Area Description": "Covers financial planning, budgeting, forecasting, financial reporting, SAP Finance, and financial analysis training. Designed for Finance function employees to build financial management and analysis capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "finance training, financial planning, budgeting, forecasting, financial reporting, SAP Finance, financial analysis",
+      "Key Indicators": "Financial Planning Training, Budgeting & Forecasting, SAP Finance, Financial Reporting, Financial Analysis"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Procurement Skills",
+      "Service Area Description": "Covers category management, negotiation, contract management, supplier relationship management, and procurement strategy. Designed for Procurement function employees to build procurement excellence capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "procurement skills, category management, negotiation, contract management, supplier relationship management, procurement strategy, sourcing",
+      "Key Indicators": "Category Management, Negotiation Skills, Contract Management, Supplier Relationship Management, Procurement Strategy"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Market Access & Health Economics",
+      "Service Area Description": "Covers pricing, reimbursement, health economics, HEOR (Health Economics and Outcomes Research), and market access strategy. Designed for Market Access function employees to build market access and health economics capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "market access, pricing, reimbursement, health economics, HEOR, health outcomes research, market access strategy",
+      "Key Indicators": "Market Access Training, Pricing Strategy, Reimbursement, HEOR, Health Economics"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Public Affairs & Government Relations",
+      "Service Area Description": "Covers government relations, advocacy, stakeholder engagement, policy analysis, and public affairs strategy. Designed for Public Affairs function employees to build government relations and advocacy capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "public affairs, government relations, advocacy, stakeholder engagement, policy analysis, public affairs strategy",
+      "Key Indicators": "Government Relations Training, Advocacy Skills, Stakeholder Engagement, Policy Analysis"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Communications & Storytelling",
+      "Service Area Description": "Covers internal communications, external communications, media relations, strategic storytelling, and communication strategy. Designed for Communications function employees to build communication and storytelling capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "communications, storytelling, internal communications, external communications, media relations, strategic storytelling, communication strategy",
+      "Key Indicators": "Communications Training, Storytelling, Media Relations, Strategic Communications"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "CSR & Sustainability",
+      "Service Area Description": "Covers corporate social responsibility, sustainability programs, environmental management, ESG reporting, and sustainability strategy. Designed for CSR/Sustainability function employees to build CSR and sustainability capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "CSR, sustainability, corporate social responsibility, environmental management, ESG, sustainability strategy, environmental programs",
+      "Key Indicators": "CSR Training, Sustainability Programs, ESG Reporting, Environmental Management"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Business Development & Alliance Management",
+      "Service Area Description": "Covers business development, licensing, alliance management, deal structuring, and partnership strategy. Designed for Partnering function employees to build business development and alliance management capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "business development, alliance management, licensing, deal structuring, partnership strategy, business development strategy",
+      "Key Indicators": "Business Development Training, Alliance Management, Licensing, Deal Structuring"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Global Corporate Functions Learning",
+      "Service Area": "Internal Audit & Risk Management",
+      "Service Area Description": "Covers risk assessment, audit methodology, internal controls, audit procedures, and risk management. Designed for Internal Audit function employees to build audit and risk management capabilities.",
+      "Target Audience": "Employees in Digital, Finance, Procurement, P&C, Corporate Affairs, L&D, Partnering, Internal Audit",
+      "Key Keywords": "internal audit, risk management, risk assessment, audit methodology, internal controls, audit procedures",
+      "Key Indicators": "Internal Audit Training, Risk Assessment, Audit Methodology, Internal Controls"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "Medical Learning Institute",
+      "Service Area": "Medical Affairs Skills Development",
+      "Service Area Description": "Provides specialized training in medical affairs for all Medical employees. Covers medical information, medical writing, medical coding, medical evidence generation, medical insights generation, scientific engagement model, and medical data analytics. Includes response handling, inquiry management, clinical study reports, manuscripts, MedDRA coding, clinical trials, observational studies, KOL identification, advisory boards, speaker programs, congress engagement, epidemiology, biostatistics, outcomes research, and HEOR.",
+      "Target Audience": "All Medical employees (office and field-based)",
+      "Key Keywords": "medical affairs, MSL, medical information, medical writing, medical coding, evidence generation, insights generation, scientific engagement, KOL, medical analytics, real-world evidence, RWE",
+      "Key Indicators": "Medical Information, Medical Writing, Medical Coding, Evidence Generation, Insights Generation, Scientific Engagement, Medical Data Analytics"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "R&D Learning Institute",
+      "Service Area": "Research & Development Scientific & Technical Upskilling",
+      "Service Area Description": "Provides specialized training in life sciences and drug development technologies for all R&D employees, including vaccines R&D. Covers translational skills, therapeutic modalities (small molecules, biologics, gene therapy, cell therapy, mRNA, vaccines), technologies (CRISPR, high-throughput screening, proteomics, genomics), therapeutic areas, CMC, process development, regulatory affairs, pharmacovigilance, R&D data sciences, bioinformatics, computational chemistry, AI/ML in drug discovery, portfolio strategy, and global R&D HSE.",
+      "Target Audience": "All R&D employees (incl. Vaccines R&D)",
+      "Key Keywords": "R&D, research, drug discovery, clinical development, pre-clinical, CMC, translational medicine, therapeutic modalities, life sciences, regulatory affairs, pharmacovigilance, R&D data science, Innoscience, portfolio strategy",
+      "Key Indicators": "Translational Skills, Therapeutic Modalities, CMC, Process Development, Regulatory Affairs, Pharmacovigilance, R&D Data Sciences, AI/ML in Drug Discovery"
+    },
+    {
+      "Segment": "P&C",
+      "Learning Institute": "M&S Learning Institute",
+      "Service Area": "Manufacturing & Supply Chain Skills Development",
+      "Service Area Description": "Provides specialized training in manufacturing and supply chain skills for all M&S employees. Covers manufacturing processes (batch manufacturing, aseptic processing, fermentation), supply chain management (demand planning, inventory management, distribution, warehousing), quality systems (non-mandatory), engineering and maintenance (preventive maintenance, equipment qualification, utilities), continuous improvement (Lean, Kaizen, value stream mapping, 5S), and manufacturing technologies (biologics manufacturing, vaccines production, chemical/pharmaceutical processes).",
+      "Target Audience": "All Manufacturing & Supply Chain employees",
+      "Key Keywords": "manufacturing, production, supply chain, logistics, quality (non-mandatory), engineering, maintenance, lean, continuous improvement, Six Sigma, biologics, vaccines, pharmaceutical processes, industrial development",
+      "Key Indicators": "Manufacturing Processes, Supply Chain Management, Quality Systems, Engineering & Maintenance, Lean & CI, Manufacturing Technologies"
+    },
+    {
+      "Segment": "BO-GLS",
+      "Learning Institute": "Business Operations - Global Learning Services",
+      "Service Area": "Learning Design, Development & Delivery Operations",
+      "Service Area Description": "Manages all learning design, development, and delivery activities within the Global Learning Organization. Covers instructional design services, eLearning course development, facilitator training, LMS administration, learning technology implementation, virtual classroom setup, learning content management, training logistics, and training effectiveness evaluation.",
+      "Target Audience": "All Business Operations employees (except GTMC) + Global Learning Services employees",
+      "Key Keywords": "learning design, instructional design, course development, LMS, learning technology, training delivery, facilitation, eLearning development, learning operations, articulate,",
+      "Key Indicators": "Instructional Design, eLearning Development, Facilitator Training, LMS Administration, Learning Technology Implementation"
+    },
+    {
+      "Segment": "BO-GTMC",
+      "Learning Institute": "GTMC - US",
+      "Service Area": "Commercial Skills for US Market",
+      "Service Area Description": "Provides specialized commercial training for all GTMC US employees, including customer-facing roles and leadership. Covers business unit product/disease state deliverables, strategy/skill-based learning and workshops, leadership development, customer-facing skills, and operational support/logistics. Includes sales force effectiveness, omnichannel engagement, US regulatory compliance (Sunshine Act, etc.), territory management, and account management.",
+      "Target Audience": "All GTMC US employees (incl. customer-facing and leadership)",
+      "Key Keywords": "GTMC, commercial, sales, customer-facing, product training, disease state, brand strategy, customer engagement, HCP engagement, US, United States, North America, field, Custom Learning Designs, Inc. (CLD) ",
+      "Key Indicators": "BU Product/Disease State Deliverables, Sales Force Effectiveness, Omnichannel Engagement, US Regulatory Compliance, Territory Management"
+    },
+    {
+      "Segment": "BO-GTMC",
+      "Learning Institute": "GTMC - Greater China",
+      "Service Area": "Commercial Skills for Greater China Market",
+      "Service Area Description": "Provides specialized commercial training for all GTMC Greater China employees, including customer-facing roles and leadership. Covers business unit product/disease state deliverables adapted to the Chinese market, strategy/skill-based learning and workshops, leadership development, customer-facing skills within the context of the Chinese healthcare system, and operational support/logistics. Includes China regulatory compliance, China market access, and digital engagement on Chinese platforms.",
+      "Target Audience": "All GTMC Greater China employees (incl. customer-facing and leadership)",
+      "Key Keywords": "GTMC, commercial, sales, customer-facing, product training, disease state, brand strategy, customer engagement, Greater China, China, Chinese market, field, Custom Learning Designs, Inc. (CLD) ",
+      "Key Indicators": "BU Product/Disease State Deliverables (China), China Regulatory Compliance, China Market Access, Digital Engagement (China Platforms)"
+    },
+    {
+      "Segment": "BO-GTMC",
+      "Learning Institute": "GTMC - Rest of World",
+      "Service Area": "Commercial Skills for International Markets (ex-US & Greater China)",
+      "Service Area Description": "Provides specialized commercial training for all GTMC employees in international markets, excluding the United States, Canada, and Greater China. Covers business unit product/disease state deliverables adapted to regional markets (Europe, EMEA, Latin America, Asia-Pacific, Japan, emerging markets), strategy/skill-based learning and workshops, leadership development, customer-facing skills across various healthcare systems, and operational support/logistics. Includes regional regulatory compliance, international market access, and multi-channel engagement.",
+      "Target Audience": "All GTMC employees (ex-US, Canada, Greater China) incl. customer-facing and leadership",
+      "Key Keywords": "GTMC, commercial, sales, customer-facing, product training, disease state, brand strategy, customer engagement, international markets, Europe, EMEA, Latin America, Asia-Pacific, Japan, field, Custom Learning Designs, Inc. (CLD) ",
+      "Key Indicators": "BU Product/Disease State Deliverables (International), Regional Regulatory Compliance, Market Access (International), Multi-channel Engagement"
+    },
+    {
+      "Segment": "SPC-SILC",
+      "Learning Institute": "SILC Commercialization Academy",
+      "Service Area": "Specialty Care Commercialization Excellence",
+      "Service Area Description": "Provides specialized training in commercialization excellence for SILC Brand Teams (Specialty Care). Covers launch excellence (launch strategy, launch tactics, launch readiness assessment, cross-functional launch teams), marketing fundamentals (brand plan development, situation analysis, SWOT), business analysis (market sizing, forecasting, competitive analysis), market mapping (stakeholder mapping, customer segmentation), customer journey (HCP journey, patient journey, touchpoint mapping), positioning and narrative (value proposition, brand story, messaging architecture), strategic storytelling (compelling narratives, data storytelling), and global marketing (global brand strategy, local adaptation).",
+      "Target Audience": "SILC Brand Teams",
+      "Key Keywords": "SILC, specialty care, commercialization, launch excellence, LEX, brand planning, marketing fundamentals, positioning, narrative, strategic storytelling",
+      "Key Indicators": "Launch Excellence, LEX Playbook, Marketing Fundamentals, Brand Planning, Positioning & Narrative, Strategic Storytelling"
+    },
+    {
+      "Segment": "LTO",
+      "Learning Institute": "LTO - Quality",
+      "Service Area": "Mandatory Quality & GxP Training for M&S",
+      "Service Area Description": "Provides mandatory quality and good practices (GxP) training for all manufacturing and supply chain employees. Covers GxP certifications (GMP, GCP, GLP, GDP, GVP), mandatory quality systems, standard operating procedures (SOP) training related to quality, validation protocols and execution, quality risk management, change control procedures, deviation investigation, corrective and preventive actions (CAPA), audit and inspection readiness, and data integrity training. Mandatory to ensure regulatory compliance and maintain highest quality standards.",
+      "Target Audience": "All Manufacturing & Supply Chain employees",
+      "Key Keywords": "mandatory training, compliance training (quality), GxP, GMP, GCP, GLP, GDP, GVP, quality systems, quality management (mandatory), quality compliance, regulatory compliance (quality), SOPs, validation, CAPA, audit readiness",
+      "Key Indicators": "GxP Certification, Quality System Training, SOP Training, Validation Protocols, Quality Risk Management, CAPA, Audit Readiness"
+    },
+    {
+      "Segment": "LTO",
+      "Learning Institute": "LTO - HSE",
+      "Service Area": "Mandatory Health, Safety & Environment Training",
+      "Service Area Description": "Provides mandatory health, safety, and environment training for all grand_org employees, with specific targeting for business units (M&S, R&D, Vaccines, Specialty Care, General Medicines, Sales & Admin, site personnel, senior leadership). Covers occupational health and safety, environmental compliance, industrial hygiene, ergonomics, chemical safety, hazardous materials, emergency response, incident investigation, accident prevention, HSE risk assessment, safety culture, personal protective equipment (PPE), contractor safety, and site safety. Includes learning delivery operations, strategic alignment with grand_org objectives, regulatory compliance, risk management, emergency preparedness, and environmental management.",
+      "Target Audience": "All grand_org employees (M&S, R&D, Vaccines, Specialty Care, General Medicines, Sales & Admin, site personnel, senior leadership)",
+      "Key Keywords": "mandatory HSE training, compliance training (HSE), health and safety, occupational health, environmental compliance, environmental management, industrial hygiene, ergonomics, chemical safety, hazardous materials, emergency response, incident investigation, accident prevention, risk assessment (HSE), safety culture, PPE",
+      "Key Indicators": "HSE Training, Occupational Health & Safety, Environmental Compliance, Emergency Response, Incident Investigation, Risk Assessment, Safety Culture"
+    },
+    {
+      "Segment": "LTO",
+      "Learning Institute": "LTO - EBI Global Compliance Learning",
+      "Service Area": "Mandatory Ethics, Business Integrity & Legal Compliance Training",
+      "Service Area Description": "Provides mandatory ethics, business integrity, and legal compliance training for all grand_org employees. Covers the grand_org Code of Conduct, ethical principles and values, anti-bribery and anti-corruption (ABAC), conflicts of interest, gifts and hospitality, third-party due diligence, vendor compliance, data protection and GDPR, global security (physical security, cybersecurity awareness, travel security, data security), trade compliance (export controls, sanctions), anti-trust and competition law, fraud prevention and financial crimes, legal regulatory compliance, and legal requirements. Includes risk mitigation plans embedded in Global Risk Owners (GRO) plans and compliance with global processes (non-GxP).",
+      "Target Audience": "All grand_org employees",
+      "Key Keywords": "mandatory compliance training, global compliance learning (GCL), ethics and business integrity (EBI), Code of Conduct, ethical behavior, anti-bribery, anti-corruption (ABAC), conflicts of interest, gifts and hospitality, third-party due diligence, vendor compliance, data privacy, GDPR, data protection, global security, physical security, travel security, trade compliance, export controls, sanctions, anti-trust, competition law, fraud prevention, financial crimes",
+      "Key Indicators": "Code of Conduct, Anti-Bribery & Anti-Corruption, Data Privacy & GDPR, Global Security, Trade Compliance, Anti-trust, Fraud Prevention"
+    },
+    {
+      "Segment": "LTO",
+      "Learning Institute": "LTO - M&S Sites",
+      "Service Area": "Mandatory Site-Specific GxP Training for M&S Sites",
+      "Service Area Description": "Provides mandatory site-specific GxP training for all manufacturing and supply chain employees at the site level. Covers site-specific GxP certifications, local standard operating procedures (SOP) training, site-specific equipment operation training, process training for site personnel, site quality systems, site-specific validation training, local regulatory compliance at the site level, and site emergency procedures (GxP context). Mandatory to ensure that all site employees understand and comply with GxP requirements specific to their manufacturing site.",
+      "Target Audience": "All site-specific Manufacturing & Supply Chain employees",
+      "Key Keywords": "site-specific training, site-based training, mandatory M&S training (site level), GxP training (site-specific), site SOPs, site procedures, site-specific quality requirements, local regulatory requirements (site), site induction, site onboarding, equipment-specific training (site), process-specific training (site), site safety (GxP context)",
+      "Key Indicators": "Site-specific GxP Certification, Local SOP Training, Equipment Operation Training, Process Training, Site Quality Systems, Local Regulatory Compliance"
+    }
+  ]
+}

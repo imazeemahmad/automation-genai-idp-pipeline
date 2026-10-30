@@ -1,0 +1,127 @@
+name: 'Terraform Bootstrap (First Deploy)'
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+
+concurrency:
+  group: deploy-bootstrap-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  ENV: ${{ github.event.inputs.environment }}
+  TERRAFORM_VERSION: '1.15.7'
+
+# Restrictive default at workflow level; jobs elevate only what they need.
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: 'Bootstrap Infrastructure'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+    environment: ${{ github.event.inputs.environment == 'prod' && 'PROD-APPROVAL' || github.event.inputs.environment == 'uat' && 'UAT-APPROVAL' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      # The action runs "terraform init" (with backend) for the selected env.
+      - uses: ./.github/actions/setup-terraform-env
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          env: ${{ env.ENV }}
+      - uses: grand_org-InnerSource/github-actions-library/install-aws-cli@main
+
+      - name: Create placeholder build artifacts
+        run: |
+          mkdir -p build
+          touch build/layer.zip build/code.zip
+
+      - name: Terraform Plan (S3 bucket + ECR repositories only)
+        run: |
+          cd app_terraform
+
+          # Build var args — only pass terraform_execution_role if defined
+          VAR_ARGS=(-var-file ../env/$ENV/variables.tfvars)
+          if [[ -n "${{ vars.TERRAFORM_EXECUTION_ROLE }}" ]]; then
+            VAR_ARGS+=(-var "terraform_execution_role=${{ vars.TERRAFORM_EXECUTION_ROLE }}")
+          fi
+
+          terraform plan -input=false -no-color \
+            "${VAR_ARGS[@]}" \
+            -target=module.s3_bucket_project \
+            -target=aws_kms_key.s3_build_bucket_key \
+            -target=aws_kms_alias.s3_build_bucket_key_alias \
+            -target=module.kms_ecr \
+            -target=module.ecr \
+            -target=module.ecr_libreoffice_converter \
+            -out bootstrap.plan 2>&1 | tee /tmp/plan_output.txt
+
+          # Verify the plan file was actually created
+          if [[ ! -f bootstrap.plan ]]; then
+            echo "::error::Terraform plan file was not created"
+            exit 1
+          fi
+          # Check for real errors (ignore the -target warning)
+          if grep -q "Error:" /tmp/plan_output.txt | grep -v "Terraform exited"; then
+            echo "::error::Terraform plan contains errors"
+            exit 1
+          fi
+          echo "✅ Plan created successfully"
+
+      - name: Terraform Apply (S3 bucket + ECR repositories only)
+        run: |
+          cd app_terraform
+          terraform apply -auto-approve bootstrap.plan 2>&1 || true
+          # Verify the bucket was created
+          BUCKET_NAME=$(terraform output -raw s3_bucket_project_name 2>/dev/null || echo "")
+          if [[ -z "$BUCKET_NAME" ]]; then
+            echo "::error::S3 bucket was not created"
+            exit 1
+          fi
+          echo "✅ Bucket created: ${BUCKET_NAME}"
+          # Verify the ECR repositories were created
+          ECR_REPO=$(terraform output -raw ecr_repository_name 2>/dev/null || echo "")
+          ECR_LO_REPO=$(terraform output -raw ecr_libreoffice_converter_repository_name 2>/dev/null || echo "")
+          if [[ -z "$ECR_REPO" || -z "$ECR_LO_REPO" ]]; then
+            echo "::error::ECR repositories were not created"
+            exit 1
+          fi
+          echo "✅ ECR repositories created: ${ECR_REPO}, ${ECR_LO_REPO}"
+
+      - name: Push Lambda artifacts to S3
+        run: |
+          chmod +x scripts/push-lambda-artifacts.sh
+          scripts/push-lambda-artifacts.sh $ENV
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## 🏗️ Bootstrap Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The S3 bucket and ECR repositories have been created and Lambda artifacts pushed." >> $GITHUB_STEP_SUMMARY
+          echo "Next: push the LibreOffice converter image to ECR, then run the full **Terraform Deploy** workflow." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 **Environment** | \`$ENV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🪣 **S3 bucket** | \`module.s3_bucket_project\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 **ECR repos** | \`module.ecr\`, \`module.ecr_libreoffice_converter\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📍 **Region** | \`${{ vars.AWS_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Triggered by** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY

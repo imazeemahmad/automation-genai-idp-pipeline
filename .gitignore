@@ -22,6 +22,7 @@ crash.*.log
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
+walkthrough.md
 override.tf
 override.tf.json
 *_override.tf
@@ -41,7 +42,6 @@ terraform.rc
 # Additional Terraform files
 tfplan.binary
 tfplan.json
-.terraform.lock.hcl
 
 # AWSTerraformStarterKit
 .config/
@@ -58,6 +58,7 @@ makeplan.mk
 **/.tflint.d/*
 *.tflint.hcl
 .idea/*
+build/
 build*/*
 zip/*
 
@@ -65,3 +66,9 @@ zip/*
 __pycache__
 LICENSE
 app_terraform/modules/*
+.kiro/*
+modules/*
+old/
+scripts/assume-coupa-role.sh
+.coverage
+.vscode

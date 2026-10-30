@@ -1,6 +1,12 @@
-black
-checkov
-pre-commit
-commitizen
-pylint
-pytest
+# Dev & CI tooling — pinned to major.minor, patch updates allowed (~=)
+black~=26.10.1
+pre-commit~=4.7.0
+commitizen~=4.19.2
+pylint~=4.1.3
+pytest~=9.1.1
+pytest-cov~=7.1.0
+
+# Lambda runtime dependencies (for local development/testing)
+aws-lambda-powertools[tracer]~=3.35.0
+snowflake-connector-python~=4.8.0
+boto3~=1.43.112

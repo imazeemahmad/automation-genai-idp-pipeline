@@ -1,0 +1,273 @@
+name: 'PR Quality & Terraform Plan'
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - uat
+      - main
+
+concurrency:
+  group: pr-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  ENV: ${{ contains(github.base_ref, 'main') && 'prod' || contains(github.base_ref, 'uat') && 'uat' || 'dev' }}
+  TERRAFORM_VERSION: '1.15.7'
+  PYTHON_VERSION: '3.12'
+
+# Restrictive default at workflow level; jobs elevate only what they need.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: 'lint'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-env
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run black (format check)
+        run: |
+          black --check --diff app_src/
+      - name: Run pylint
+        run: |
+          pylint --rcfile=.pylintrc app_src/app/lambdas/
+
+  test:
+    name: 'test'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-env
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run unit tests with coverage
+        run: |
+          pytest app_src/tests/unit/ \
+            --cov=app_src/app/lambdas \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            --tb=short --no-header -q
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  coverage:
+    name: 'coverage'
+    needs: test
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 10
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Get AWS Provider Version
+        id: aws_version
+        run: |
+          VERSION=$(grep -A 2 'registry.terraform.io/hashicorp/aws' app_terraform/.terraform.lock.hcl \
+                | grep version \
+                | head -1 \
+                | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "aws_provider_version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Download coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: pr-coverage-report
+      - name: Fix coverage paths for SonarQube
+        run: |
+          if [ -f coverage.xml ]; then
+            sed -i 's|<source>.*</source>|<source>.</source>|g' coverage.xml
+            sed -i 's|filename="|filename="app_src/app/lambdas/|g' coverage.xml
+          fi
+      - name: SonarQube Scan
+        uses: grand_org-InnerSource/sonar-scan@main
+        with:
+          environment: dev
+          scanner_extra_args: >
+            -Dsonar.terraform.provider.aws.version=${{ steps.aws_version.outputs.aws_provider_version }}
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.coverage.jacoco.xmlReportPaths=
+
+  terraform-quality:
+    name: 'terraform-quality'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 10
+    environment: ${{ contains(github.base_ref, 'main') && 'PROD' || contains(github.base_ref, 'uat') && 'UAT' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Dependabot — skip Terraform quality
+        if: github.actor == 'dependabot[bot]'
+        run: echo "Skipping Terraform quality for Dependabot PR (no JFrog registry credentials)."
+      - uses: actions/checkout@v7
+        if: github.actor != 'dependabot[bot]'
+      - uses: ./.github/actions/setup-terraform-env
+        if: github.actor != 'dependabot[bot]'
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          run-init: 'false'
+      - name: Terraform Format Check
+        if: github.actor != 'dependabot[bot]'
+        run: |
+          terraform fmt -check -recursive app_terraform/
+      - name: Terraform Validate
+        if: github.actor != 'dependabot[bot]'
+        run: |
+          cd app_terraform
+          terraform init -backend=false
+          terraform validate -no-color
+
+  quality-summary:
+    name: 'Quality Checks Summary'
+    needs: [lint, test, coverage, terraform-quality, security]
+    if: always()
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Comment quality results on PR
+        uses: grand_org-InnerSource/github-actions-library/comment-on-pr@main
+        with:
+          message: |
+            ## 🔍 Quality Checks (required)
+
+            | Check | Result |
+            |-------|--------|
+            | 🎨 Black | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Formatting issues' }} |
+            | 🔎 Pylint | ${{ needs.lint.result == 'success' && '✅ Passed (10/10)' || '❌ Issues detected' }} |
+            | 🧪 Unit Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failures detected' }} |
+            | 📊 SonarQube | ${{ needs.coverage.result == 'success' && '✅ Passed' || '❌ Quality gate failed' }} |
+            | 🏗️ Terraform | ${{ needs.terraform-quality.result == 'success' && '✅ Passed' || '❌ fmt/validate errors' }} |
+            | 🔐 Security (Prisma) | ${{ needs.security.result == 'success' && '✅ Passed' || '❌ Findings detected' }} |
+
+            > 🚫 All checks are **required** and block the merge on failure.
+
+  # ---------------------------------------------------------------------------
+  # Prisma Code - IaC Security Scan (SAST / IaC security gate)
+  # ---------------------------------------------------------------------------
+  security:
+    name: 'security'
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: grand_org-GitHub/cyber-prisma-code-shared-workflow/.github/workflows/prisma-code.yml@main
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # Terraform Plan (required — blocks merge if it fails)
+  # ---------------------------------------------------------------------------
+  terraform-plan-pr:
+    name: 'Terraform Plan (PR)'
+    needs: [quality-summary, lint, test, coverage, terraform-quality, security]
+    if: needs.lint.result == 'success' && needs.test.result == 'success' && needs.coverage.result == 'success' && needs.terraform-quality.result == 'success' && needs.security.result == 'success'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+    environment: ${{ contains(github.base_ref, 'main') && 'PROD' || contains(github.base_ref, 'uat') && 'UAT' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Dependabot — skip Terraform plan
+        if: github.actor == 'dependabot[bot]'
+        run: echo "Skipping Terraform plan for Dependabot PR (no JFrog registry / OIDC credentials)."
+      - uses: actions/checkout@v7
+        if: github.actor != 'dependabot[bot]'
+      # The action runs "terraform init" (with backend) for the selected env.
+      - uses: ./.github/actions/setup-terraform-env
+        if: github.actor != 'dependabot[bot]'
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          env: ${{ env.ENV }}
+
+      - name: Terraform Plan
+        id: plan
+        if: github.actor != 'dependabot[bot]'
+        env:
+          TF_VAR_coupa_role_external_id: ${{ secrets.COUPA_ROLE_EXTERNAL_ID }}
+        run: |
+          cd app_terraform
+          terraform plan -input=false -no-color \
+            -var-file ../env/$ENV/variables.tfvars \
+            -var "terraform_execution_role=${{ vars.TERRAFORM_EXECUTION_ROLE }}" \
+            2>&1 | tee /tmp/plan_output.txt
+          PLAN_SUMMARY=$(grep -E "Plan:|No changes" /tmp/plan_output.txt | tail -1 || echo "⚠️ Could not extract plan summary")
+          echo "plan_summary=${PLAN_SUMMARY}" >> $GITHUB_OUTPUT
+
+          # Save full plan output (truncate to 64000 chars to stay within PR comment limits)
+          FULL_PLAN=$(head -c 64000 /tmp/plan_output.txt)
+          {
+            echo "plan_full<<PLAN_EOF"
+            echo "${FULL_PLAN}"
+            echo "PLAN_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Comment plan on PR
+        if: github.actor != 'dependabot[bot]'
+        uses: grand_org-InnerSource/github-actions-library/comment-on-pr@main
+        with:
+          message: |
+            ## 📋 Terraform Plan — `${{ env.ENV }}`
+
+            **Target branch:** `${{ github.base_ref }}`
+            **Commit:** `${{ github.event.pull_request.head.sha }}`
+
+            ### Summary
+            ${{ steps.plan.outputs.plan_summary || 'Plan output not available' }}
+
+            <details>
+            <summary>Full plan output</summary>
+
+            ```
+            ${{ steps.plan.outputs.plan_full }}
+            ```
+
+            </details>
+
+      - name: Comment failure on PR
+        if: failure() && github.actor != 'dependabot[bot]'
+        uses: grand_org-InnerSource/github-actions-library/comment-on-pr@main
+        with:
+          message: |
+            ## ❌ Terraform Plan Failed — `${{ env.ENV }}`
+
+            **Target branch:** `${{ github.base_ref }}`
+            **Commit:** `${{ github.event.pull_request.head.sha }}`
+
+            The plan failed. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.

@@ -1,0 +1,482 @@
+{
+  "Comment": "Purchase Order Processing Workflow",
+  "StartAt": "RetrievePurchaseOrders",
+  "States": {
+    "RetrievePurchaseOrders": {
+      "Type": "Map",
+      "ItemsPath": "$.hacat_list",
+      "MaxConcurrency": 1,
+      "ItemSelector": {
+        "workflow_name.$": "$$.Execution.Input.workflow_name",
+        "hacat.$": "$$.Map.Item.Value"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "CoupaPORetrieval",
+        "States": {
+          "CoupaPORetrieval": {
+            "Type": "Task",
+            "Resource": "${coupa_po_retrieval_lambda_arn}",
+            "Parameters": {
+              "hacat.$": "$.hacat",
+              "poNumbers.$": "$$.Execution.Input.po_numbers",
+              "executionId.$": "$$.Execution.Name"
+            },
+            "ResultPath": "$.retrieval_result",
+            "Next": "ProcessAllOrders",
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "Next": "SetFailedStepCoupaPORetrieval",
+                "ResultPath": "$.error"
+              }
+            ]
+          },
+          "SetFailedStepCoupaPORetrieval": {
+            "Type": "Pass",
+            "Result": "CoupaPORetrieval",
+            "ResultPath": "$.failed_step",
+            "Next": "NotifyHacatFailure"
+          },
+          "ProcessAllOrders": {
+            "Type": "Map",
+            "ItemsPath": "$.retrieval_result.purchaseOrders",
+            "MaxConcurrency": ${max_concurrency_orders},
+            "ItemSelector": {
+              "workflow_name.$": "$.workflow_name",
+              "hacat.$": "$$.Map.Item.Value.hacat",
+              "poNumber.$": "$$.Map.Item.Value.poNumber",
+              "poFiles.$": "$$.Map.Item.Value.poFiles"
+            },
+            "ItemProcessor": {
+              "ProcessorConfig": {
+                "Mode": "INLINE"
+              },
+              "StartAt": "CedlCopyPoFiles",
+              "States": {
+                "CedlCopyPoFiles": {
+                  "Type": "Task",
+                  "Resource": "${cedl_copy_po_files_lambda_arn}",
+                  "Parameters": {
+                    "hacat.$": "$.hacat",
+                    "poNumber.$": "$.poNumber",
+                    "poFiles.$": "$.poFiles",
+                    "executionId.$": "$$.Execution.Name"
+                  },
+                  "ResultPath": "$.copy_result",
+                  "Next": "ProcessPoFiles",
+                  "Retry": [
+                    {
+                      "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2.0
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "Next": "SetFailedStepCedlCopyPoFiles",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "SetFailedStepCedlCopyPoFiles": {
+                  "Type": "Pass",
+                  "Result": "CedlCopyPoFiles",
+                  "ResultPath": "$.failed_step",
+                  "Next": "NotifyOrderFailure"
+                },
+                "ProcessPoFiles": {
+                  "Type": "Map",
+                  "ItemsPath": "$.copy_result.poFiles",
+                  "MaxConcurrency": ${max_concurrency_files},
+                  "ItemSelector": {
+                    "workflow_name.$": "$.workflow_name",
+                    "hacat.$": "$.hacat",
+                    "poNumber.$": "$.poNumber",
+                    "poFile.$": "$$.Map.Item.Value.filename"
+                  },
+                  "ItemProcessor": {
+                    "ProcessorConfig": {
+                      "Mode": "INLINE"
+                    },
+                    "StartAt": "ConvertPoFile",
+                    "States": {
+                      "ConvertPoFile": {
+                        "Type": "Task",
+                        "Resource": "${convert_po_file_lambda_arn}",
+                        "Parameters": {
+                          "hacat.$": "$.hacat",
+                          "poNumber.$": "$.poNumber",
+                          "poFile.$": "$.poFile"
+                        },
+                        "ResultPath": "$.convert_result",
+                        "Next": "OcrPoFile",
+                        "Retry": [
+                          {
+                            "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                            "IntervalSeconds": 2,
+                            "MaxAttempts": 3,
+                            "BackoffRate": 2.0
+                          }
+                        ],
+                        "Catch": [
+                          {
+                            "ErrorEquals": ["States.ALL"],
+                            "Next": "SetFailedStepConvertPoFile",
+                            "ResultPath": "$.error"
+                          }
+                        ]
+                      },
+                      "SetFailedStepConvertPoFile": {
+                        "Type": "Pass",
+                        "Result": "ConvertPoFile",
+                        "ResultPath": "$.failed_step",
+                        "Next": "NotifyFileFailure"
+                      },
+                      "OcrPoFile": {
+                        "Type": "Task",
+                        "Resource": "${ocr_po_file_lambda_arn}",
+                        "Parameters": {
+                          "hacat.$": "$.hacat",
+                          "poNumber.$": "$.poNumber",
+                          "poFile.$": "$.convert_result.poFile",
+                          "processedFile.$": "$.convert_result.processedFile"
+                        },
+                        "ResultPath": "$.ocr_result",
+                        "Next": "InitOcrPollCount",
+                        "Retry": [
+                          {
+                            "ErrorEquals": ["ServiceQuotaExceededException"],
+                            "IntervalSeconds": 300,
+                            "MaxAttempts": 12,
+                            "BackoffRate": 1.0,
+                            "JitterStrategy": "FULL"
+                          },
+                          {
+                            "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                            "IntervalSeconds": 2,
+                            "MaxAttempts": 3,
+                            "BackoffRate": 2.0
+                          }
+                        ],
+                        "Catch": [
+                          {
+                            "ErrorEquals": ["States.ALL"],
+                            "Next": "SetFailedStepOcrPoFile",
+                            "ResultPath": "$.error"
+                          }
+                        ]
+                      },
+                      "SetFailedStepOcrPoFile": {
+                        "Type": "Pass",
+                        "Result": "OcrPoFile",
+                        "ResultPath": "$.failed_step",
+                        "Next": "NotifyFileFailure"
+                      },
+                      "InitOcrPollCount": {
+                        "Type": "Pass",
+                        "Result": {
+                          "value": 0
+                        },
+                        "ResultPath": "$.ocr_poll_count",
+                        "Next": "WaitForOcr"
+                      },
+                      "WaitForOcr": {
+                        "Type": "Wait",
+                        "Seconds": 30,
+                        "Next": "OcrPoFileGetStatus"
+                      },
+                      "OcrPoFileGetStatus": {
+                        "Type": "Task",
+                        "Resource": "${ocr_po_file_get_status_lambda_arn}",
+                        "Parameters": {
+                          "hacat.$": "$.hacat",
+                          "poNumber.$": "$.poNumber",
+                          "poFile.$": "$.convert_result.poFile",
+                          "invocationArn.$": "$.ocr_result.invocationArn"
+                        },
+                        "ResultPath": "$.ocr_status_result",
+                        "Next": "CheckOcrStatus",
+                        "Retry": [
+                          {
+                            "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                            "IntervalSeconds": 5,
+                            "MaxAttempts": 5,
+                            "BackoffRate": 2.0
+                          }
+                        ],
+                        "Catch": [
+                          {
+                            "ErrorEquals": ["States.ALL"],
+                            "Next": "SetFailedStepOcrPoFileGetStatus",
+                            "ResultPath": "$.error"
+                          }
+                        ]
+                      },
+                      "SetFailedStepOcrPoFileGetStatus": {
+                        "Type": "Pass",
+                        "Result": "OcrPoFileGetStatus",
+                        "ResultPath": "$.failed_step",
+                        "Next": "NotifyFileFailure"
+                      },
+                      "CheckOcrStatus": {
+                        "Type": "Choice",
+                        "Choices": [
+                          {
+                            "Variable": "$.ocr_status_result.status",
+                            "StringEquals": "OCR_COMPLETED",
+                            "Next": "MarkFileAsSuccess"
+                          },
+                          {
+                            "Variable": "$.ocr_status_result.status",
+                            "StringEquals": "OCR_FAILED",
+                            "Next": "SetOcrErrorContext"
+                          }
+                        ],
+                        "Default": "IncrementOcrPollCount"
+                      },
+                      "IncrementOcrPollCount": {
+                        "Type": "Pass",
+                        "Parameters": {
+                          "value.$": "States.MathAdd($.ocr_poll_count.value, 1)"
+                        },
+                        "ResultPath": "$.ocr_poll_count",
+                        "Next": "ChooseWaitDuration"
+                      },
+                      "ChooseWaitDuration": {
+                        "Type": "Choice",
+                        "Comment": "Poll every 30s, timeout after 20 polls (20 x 30s = 10 min)",
+                        "Choices": [
+                          {
+                            "Variable": "$.ocr_poll_count.value",
+                            "NumericGreaterThanEquals": 20,
+                            "Next": "SetOcrTimeoutContext"
+                          }
+                        ],
+                        "Default": "WaitForOcr"
+                      },
+                      "MarkFileAsSuccess": {
+                        "Type": "Pass",
+                        "Result": "SUCCESS",
+                        "ResultPath": "$.file_status",
+                        "End": true
+                      },
+                      "SetOcrErrorContext": {
+                        "Type": "Pass",
+                        "Parameters": {
+                          "Error": "OCR_FAILED",
+                          "Cause": "Bedrock Data Automation returned an error status for this file"
+                        },
+                        "ResultPath": "$.error",
+                        "Next": "SetFailedStepOcrError"
+                      },
+                      "SetFailedStepOcrError": {
+                        "Type": "Pass",
+                        "Result": "CheckOcrStatus",
+                        "ResultPath": "$.failed_step",
+                        "Next": "NotifyFileFailure"
+                      },
+                      "SetOcrTimeoutContext": {
+                        "Type": "Pass",
+                        "Parameters": {
+                          "Error": "OCR_TIMEOUT",
+                          "Cause": "OCR polling exceeded maximum attempts (20 polls x 30s = 10 minutes)"
+                        },
+                        "ResultPath": "$.error",
+                        "Next": "SetFailedStepOcrTimeout"
+                      },
+                      "SetFailedStepOcrTimeout": {
+                        "Type": "Pass",
+                        "Result": "ChooseWaitDuration",
+                        "ResultPath": "$.failed_step",
+                        "Next": "NotifyFileFailure"
+                      },
+                      "NotifyFileFailure": {
+                        "Type": "Task",
+                        "Resource": "arn:aws:states:::sns:publish",
+                        "Parameters": {
+                          "TopicArn": "${sns_tech_alerts_topic_arn}",
+                          "Subject.$": "States.Format('[PDB][{}] PO {} - {} Failed ({})', $.workflow_name, $.poNumber, $.failed_step, $.poFile)",
+                          "Message.$": "States.Format('[PDB][{}] PO File processing failed.\n\nWorkflow: {}\nHACAT: {}\nPO Number: {}\nFile: {}\nFailed Step: {}\nError: {}\nCause: {}\n\nExecution ID: {}\nConsole: https://${aws_region}.console.aws.amazon.com/states/home?region=${aws_region}#/v2/executions/details/{}', $.workflow_name, $.workflow_name, $.hacat, $.poNumber, $.poFile, $.failed_step, $.error.Error, $.error.Cause, $$.Execution.Id, $$.Execution.Id)"
+                        },
+                        "ResultPath": "$.sns_result",
+                        "Next": "FailFile",
+                        "Catch": [
+                          {
+                            "ErrorEquals": ["States.ALL"],
+                            "Next": "FailFile",
+                            "ResultPath": "$.sns_error"
+                          }
+                        ]
+                      },
+                      "FailFile": {
+                        "Type": "Fail",
+                        "Error": "FILE_PROCESSING_FAILED",
+                        "Cause": "A file failed during processing - aborting PO processing"
+                      }
+                    }
+                  },
+                  "ResultPath": "$.files_results",
+                  "Next": "ConsolidatePoData",
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "Next": "SetFailedStepProcessPoFiles",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "SetFailedStepProcessPoFiles": {
+                  "Type": "Pass",
+                  "Result": "ProcessPoFiles",
+                  "ResultPath": "$.failed_step",
+                  "Next": "NotifyOrderFailure"
+                },
+                "ConsolidatePoData": {
+                  "Type": "Task",
+                  "Resource": "${consolidate_po_data_lambda_arn}",
+                  "Parameters": {
+                    "hacat.$": "$.hacat",
+                    "poNumber.$": "$.poNumber",
+                    "executionId.$": "$$.Execution.Name"
+                  },
+                  "ResultPath": "$.consolidation_result",
+                  "Next": "CedlExportPoOutputData",
+                  "Retry": [
+                    {
+                      "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2.0
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "Next": "SetFailedStepConsolidate",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "SetFailedStepConsolidate": {
+                  "Type": "Pass",
+                  "Result": "ConsolidatePoData",
+                  "ResultPath": "$.failed_step",
+                  "Next": "NotifyOrderFailure"
+                },
+                "CedlExportPoOutputData": {
+                  "Type": "Task",
+                  "Resource": "${cedl_export_po_output_data_lambda_arn}",
+                  "Parameters": {
+                    "hacat.$": "$.hacat",
+                    "poNumber.$": "$.poNumber",
+                    "timestamp.$": "$.consolidation_result.timestamp",
+                    "executionId.$": "$$.Execution.Name"
+                  },
+                  "ResultPath": "$.export_result",
+                  "Next": "MarkOrderAsSuccess",
+                  "Retry": [
+                    {
+                      "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                      "IntervalSeconds": 2,
+                      "MaxAttempts": 3,
+                      "BackoffRate": 2.0
+                    }
+                  ],
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "Next": "SetFailedStepCedlExport",
+                      "ResultPath": "$.error"
+                    }
+                  ]
+                },
+                "SetFailedStepCedlExport": {
+                  "Type": "Pass",
+                  "Result": "CedlExportPoOutputData",
+                  "ResultPath": "$.failed_step",
+                  "Next": "NotifyOrderFailure"
+                },
+                "MarkOrderAsSuccess": {
+                  "Type": "Pass",
+                  "Result": "SUCCESS",
+                  "ResultPath": "$.status",
+                  "End": true
+                },
+                "NotifyOrderFailure": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::sns:publish",
+                  "Parameters": {
+                    "TopicArn": "${sns_tech_alerts_topic_arn}",
+                    "Subject.$": "States.Format('[PDB][{}] PO {} - {} Failed', $.workflow_name, $.poNumber, $.failed_step)",
+                    "Message.$": "States.Format('[PDB][{}] PO Order processing failed.\n\nWorkflow: {}\nHACAT: {}\nPO Number: {}\nFailed Step: {}\nError: {}\nCause: {}\n\nExecution ID: {}\nConsole: https://${aws_region}.console.aws.amazon.com/states/home?region=${aws_region}#/v2/executions/details/{}', $.workflow_name, $.workflow_name, $.hacat, $.poNumber, $.failed_step, $.error.Error, $.error.Cause, $$.Execution.Id, $$.Execution.Id)"
+                  },
+                  "ResultPath": "$.sns_result",
+                  "Next": "MarkOrderAsFailed",
+                  "Catch": [
+                    {
+                      "ErrorEquals": ["States.ALL"],
+                      "Next": "MarkOrderAsFailed",
+                      "ResultPath": "$.sns_error"
+                    }
+                  ]
+                },
+                "MarkOrderAsFailed": {
+                  "Type": "Pass",
+                  "Result": "FAILED",
+                  "ResultPath": "$.status",
+                  "End": true
+                }
+              }
+            },
+            "ResultPath": "$.orders_results",
+            "Next": "MarkHacatAsSuccess"
+          },
+          "MarkHacatAsSuccess": {
+            "Type": "Pass",
+            "Result": "SUCCESS",
+            "ResultPath": "$.status",
+            "End": true
+          },
+          "NotifyHacatFailure": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+              "TopicArn": "${sns_tech_alerts_topic_arn}",
+              "Subject.$": "States.Format('[PDB][{}] HACAT {} - {} Failed', $.workflow_name, $.hacat, $.failed_step)",
+              "Message.$": "States.Format('[PDB][{}] HACAT processing failed.\n\nWorkflow: {}\nHACAT: {}\nFailed Step: {}\nError: {}\nCause: {}\n\nExecution ID: {}\nConsole: https://${aws_region}.console.aws.amazon.com/states/home?region=${aws_region}#/v2/executions/details/{}', $.workflow_name, $.workflow_name, $.hacat, $.failed_step, $.error.Error, $.error.Cause, $$.Execution.Id, $$.Execution.Id)"
+            },
+            "ResultPath": "$.sns_result",
+            "Next": "MarkHacatAsFailed",
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "Next": "MarkHacatAsFailed",
+                "ResultPath": "$.sns_error"
+              }
+            ]
+          },
+          "MarkHacatAsFailed": {
+            "Type": "Pass",
+            "Result": "FAILED",
+            "ResultPath": "$.status",
+            "End": true
+          }
+        }
+      },
+      "End": true
+    }
+  }
+}

@@ -1,0 +1,86 @@
+name: 'Setup Terraform Environment'
+description: 'Common setup for jobs requiring Terraform + AWS credentials (with cached init)'
+
+inputs:
+  terraform-version:
+    description: 'Terraform version to install'
+    required: true
+  aws-role:
+    description: 'AWS IAM role ARN to assume'
+    required: true
+  aws-region:
+    description: 'AWS region'
+    required: true
+  artifactory-token:
+    description: 'Terraform registry token (needed to init against the JFrog registry)'
+    required: false
+    default: ''
+  env:
+    description: 'Environment name (dev/uat/prod) used to select the backend config'
+    required: false
+    default: ''
+  run-init:
+    description: 'Run "terraform init" (with cache) after installing Terraform'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up root CA
+      uses: grand_org-InnerSource/github-actions-library/setup-root-ca@main
+
+    # terraform_wrapper: false — the default wrapper is a Node script that
+    # shells out to `node`, which isn't on PATH on the self-hosted runners.
+    # We don't use the wrapper's stdout/exitcode outputs (plan_summary is built
+    # manually), so disabling it avoids needing a separate Node install.
+    - name: Setup Terraform (with registry credentials)
+      if: inputs.artifactory-token != ''
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false
+        cli_config_credentials_hostname: 'grand_org.jfrog.io'
+        cli_config_credentials_token: ${{ inputs.artifactory-token }}
+
+    - name: Setup Terraform (without registry credentials)
+      if: inputs.artifactory-token == ''
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role }}
+        role-session-name: deploy_idp
+        aws-region: ${{ inputs.aws-region }}
+
+    # Cache the downloaded providers and modules so that "terraform init" in
+    # each job is fast. The "warm" terraform-init job populates this cache;
+    # downstream parallel jobs restore it and re-run a quick init instead of
+    # passing the .terraform directory around as an artifact.
+    - name: Cache Terraform providers and modules
+      if: inputs.run-init == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          app_terraform/.terraform/providers
+          app_terraform/.terraform/modules
+        key: terraform-${{ inputs.env }}-${{ hashFiles('app_terraform/.terraform.lock.hcl') }}
+        restore-keys: |
+          terraform-${{ inputs.env }}-
+
+    - name: Terraform Init
+      if: inputs.run-init == 'true'
+      shell: bash
+      # Pass the input through a step env var (TF_ENV) rather than dereferencing
+      # ${{ inputs.env }} directly in the script: "env" collides with the
+      # reserved env context, so reading a plain shell variable is unambiguous.
+      env:
+        TF_ENV: ${{ inputs.env }}
+      run: |
+        cd app_terraform
+        terraform -v
+        terraform init -backend-config "../env/${TF_ENV}/backend_config.tfvars"

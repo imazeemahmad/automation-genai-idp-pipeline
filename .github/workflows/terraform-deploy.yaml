@@ -1,0 +1,440 @@
+name: 'Terraform Deploy'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - uat
+      - main
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/uat' }}
+
+env:
+  ENV: ${{ github.ref == 'refs/heads/main' && 'prod' || github.ref == 'refs/heads/uat' && 'uat' || 'dev' }}
+  APP_NAME: 'ProcurementBooster'
+  TERRAFORM_VERSION: '1.15.7'
+  PYTHON_VERSION: '3.12'
+  RETENTION_DAYS_DEFAULT: '7'
+  RETENTION_DAYS_LONG: '30'
+  HTTP_PROXY: ''
+  HTTPS_PROXY: ''
+
+# Restrictive default at workflow level; jobs elevate only what they need.
+permissions:
+  contents: read
+
+jobs:
+  terraform-init:
+    name: 'Terraform Init'
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+    environment: ${{ github.ref == 'refs/heads/main' && 'PROD' || github.ref == 'refs/heads/uat' && 'UAT' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-terraform-env
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          env: ${{ env.ENV }}
+      - name: Get AWS Account ID
+        id: aws_account
+        run: |
+          ACCOUNT_ID=$(echo "${{ vars.AWS_MODULE_ROLE_ARN }}" | cut -d':' -f5)
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## 🏁 Terraform Init" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 **Environment** | \`$ENV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔑 **AWS Account** | \`${{ steps.aws_account.outputs.account_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌿 **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔖 **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ **Terraform** | \`${{ env.TERRAFORM_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📍 **Region** | \`${{ vars.AWS_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Triggered by** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔗 **Run** | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+
+  build:
+    name: 'Build Lambda Artifacts'
+    needs: terraform-init
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Set up root CA
+        uses: grand_org-InnerSource/github-actions-library/setup-root-ca@main
+      - name: Configure grand_org open-source mirrors (pip)
+        uses: grand_org-InnerSource/github-actions-library/setup-oss-mirrors@main
+        with:
+          pypi: 'true'
+      - uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: app_src/app/lambdas/requirements.txt
+      - name: Install zip
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y zip
+      - name: Build Lambda layer and code
+        run: |
+          chmod +x scripts/build-lambda-layer.sh scripts/build-lambda-code.sh
+          scripts/build-lambda-layer.sh
+          scripts/build-lambda-code.sh
+      - name: Upload Lambda artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: lambda-artifacts
+          path: |
+            build/layer.zip
+            build/code.zip
+            build/code/version.json
+          retention-days: ${{ env.RETENTION_DAYS_LONG }}
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## 📦 Build Lambda Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/code/version.json ]; then
+            echo "### 🏷️ Version" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat build/code/version.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|------|" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/layer.zip ]; then
+            LAYER_SIZE=$(du -h build/layer.zip | cut -f1)
+            echo "| 🧱 layer.zip | \`${LAYER_SIZE}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f build/code.zip ]; then
+            CODE_SIZE=$(du -h build/code.zip | cut -f1)
+            echo "| 💻 code.zip | \`${CODE_SIZE}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  push-artifacts:
+    name: 'Push Lambda Artifacts to S3'
+    needs: build
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+    environment: ${{ github.ref == 'refs/heads/main' && 'PROD' || github.ref == 'refs/heads/uat' && 'UAT' || 'DEV' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-aws-env
+        with:
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Download Lambda artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: lambda-artifacts
+          path: build
+      - name: Check if S3 bucket exists
+        id: bucket_check
+        run: |
+          BUCKET_NAME="app-idp-emea-common-build-$ENV"
+          if aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Bucket ${BUCKET_NAME} exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Bucket ${BUCKET_NAME} does not exist yet — skipping push (first deployment)"
+          fi
+      - name: Push Lambda artifacts to S3
+        if: steps.bucket_check.outputs.exists == 'true'
+        run: |
+          chmod +x scripts/push-lambda-artifacts.sh
+          scripts/push-lambda-artifacts.sh $ENV
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## 🚀 Push Artifacts to S3" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.bucket_check.outputs.exists }}" == "true" ]]; then
+            echo "| | |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🪣 **Bucket** | \`app-idp-emea-common-build-$ENV\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🌍 **Environment** | \`$ENV\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📍 **Region** | \`${{ vars.AWS_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> [!WARNING]" >> $GITHUB_STEP_SUMMARY
+            echo "> ⚠️ S3 bucket does not exist yet. Artifacts will be pushed on next run after Terraform creates the bucket." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  terraform-plan:
+    name: 'Terraform Plan'
+    needs: push-artifacts
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+    environment: ${{ github.ref == 'refs/heads/main' && 'PROD' || github.ref == 'refs/heads/uat' && 'UAT' || 'DEV' }}
+    outputs:
+      plan_sha256: ${{ steps.plan_hash.outputs.sha256 }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-terraform-env
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          env: ${{ env.ENV }}
+      - name: Terraform Plan
+        id: plan
+        env:
+          TF_VAR_coupa_role_external_id: ${{ secrets.COUPA_ROLE_EXTERNAL_ID }}
+        run: |
+          cd app_terraform
+          terraform plan -out terraform.plan -input=false \
+            -var-file ../env/$ENV/variables.tfvars \
+            -var "terraform_execution_role=${{ vars.TERRAFORM_EXECUTION_ROLE }}" \
+            -detailed-exitcode -no-color 2>&1 | tee /tmp/plan_output.txt
+          # Capture terraform's exit code, not tee's (last command in the pipe)
+          PLAN_EXIT=${PIPESTATUS[0]}
+          # Exit codes: 0 = no changes, 1 = error, 2 = changes present
+          if [[ $PLAN_EXIT -eq 1 ]]; then
+            echo "::error::Terraform plan failed with errors"
+            exit 1
+          fi
+          # Extract the summary line
+          PLAN_SUMMARY=$(grep -E "Plan:|No changes" /tmp/plan_output.txt | tail -1 || echo "⚠️ Could not extract plan summary")
+          echo "plan_summary=${PLAN_SUMMARY}" >> $GITHUB_OUTPUT
+      - name: Compute plan checksum
+        id: plan_hash
+        run: |
+          HASH=$(sha256sum app_terraform/terraform.plan | awk '{print $1}')
+          echo "sha256=${HASH}" >> $GITHUB_OUTPUT
+          echo "🔒 Plan SHA-256: \`${HASH}\`" >> $GITHUB_STEP_SUMMARY
+      - name: Store plan
+        uses: actions/upload-artifact@v7
+        with:
+          name: terraform-plan
+          path: app_terraform/terraform.plan
+          retention-days: ${{ env.RETENTION_DAYS_LONG }}
+      - name: Job Summary
+        if: always()
+        run: |
+          PLAN_SUMMARY="${{ steps.plan.outputs.plan_summary }}"
+          if [[ "$PLAN_SUMMARY" == *"destroy"* ]]; then
+            echo "> [!CAUTION]" >> $GITHUB_STEP_SUMMARY
+            echo "> 🔴 ${PLAN_SUMMARY}" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$PLAN_SUMMARY" == *"No changes"* ]]; then
+            echo "> [!NOTE]" >> $GITHUB_STEP_SUMMARY
+            echo "> ✅ ${PLAN_SUMMARY}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> [!WARNING]" >> $GITHUB_STEP_SUMMARY
+            echo "> 🟡 ${PLAN_SUMMARY}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Terraform Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 **Environment** | \`$ENV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ **Terraform** | \`${{ env.TERRAFORM_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📁 **Var file** | \`env/$ENV/variables.tfvars\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔑 **Execution role** | \`App_Github_idp_bootstrap\` |" >> $GITHUB_STEP_SUMMARY
+
+  terraform-apply:
+    name: 'Terraform Apply'
+    needs: terraform-plan
+    environment: ${{ github.ref == 'refs/heads/main' && 'PROD-APPROVAL' || github.ref == 'refs/heads/uat' && 'UAT-APPROVAL' || 'DEV-APPROVAL' }}
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 15
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-terraform-env
+        with:
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          aws-role: ${{ vars.AWS_MODULE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          artifactory-token: ${{ secrets.TERRAFORM_ARTIFACTORY_TOKEN }}
+          env: ${{ env.ENV }}
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v8
+        with:
+          name: terraform-plan
+          path: app_terraform
+      - name: Verify plan integrity
+        run: |
+          EXPECTED="${{ needs.terraform-plan.outputs.plan_sha256 }}"
+          ACTUAL=$(sha256sum app_terraform/terraform.plan | awk '{print $1}')
+          echo "Expected: ${EXPECTED}"
+          echo "Actual:   ${ACTUAL}"
+          if [[ "${EXPECTED}" != "${ACTUAL}" ]]; then
+            echo "::error::Plan file integrity check FAILED. The plan may have been tampered with."
+            exit 1
+          fi
+          echo "✅ Plan integrity verified"
+      - name: Terraform Apply
+        run: |
+          cd app_terraform
+          terraform apply -auto-approve terraform.plan
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## ✅ Terraform Apply" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌍 **Environment** | \`$ENV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌿 **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔖 **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Approved by** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ **Terraform** | \`${{ env.TERRAFORM_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  create-release:
+    name: 'Create Release & Tag'
+    needs: terraform-apply
+    if: github.ref == 'refs/heads/develop'
+    environment: DEV-APPROVAL
+    runs-on: ['atmos-aws-arc-runner-set']
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Calculate next version
+        id: version
+        run: |
+          # Use the highest semantic-version tag across the whole repo, not the
+          # closest reachable ancestor tag. `git describe --tags --abbrev=0`
+          # returns the nearest tag reachable from HEAD, which depends on branch
+          # topology and fetch depth and can skip a higher tag (e.g. 0.6.0) that
+          # is not a direct ancestor, causing an incorrect bump (0.5.1 -> 0.5.2).
+          LAST_TAG=$(git tag --sort=-v:refname | head -n1)
+          [[ -z "${LAST_TAG}" ]] && LAST_TAG="none"
+          echo "Last tag: ${LAST_TAG}"
+
+          if [[ "${LAST_TAG}" != "none" ]]; then
+            echo "--- Commits since ${LAST_TAG} ---"
+            git log ${LAST_TAG}..HEAD --oneline
+          fi
+
+          # Get next version from commitizen
+          NEXT_VERSION=$(cz bump --get-next 2>/dev/null) || true
+
+          # If no bump-worthy commits, force a patch bump
+          if [[ -z "${NEXT_VERSION}" || "${NEXT_VERSION}" == "${LAST_TAG}" ]]; then
+            if [[ "${LAST_TAG}" != "none" ]]; then
+              # Parse current version and increment patch
+              IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST_TAG}"
+              NEXT_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+              echo "⚠️ No conventional commits found — forcing patch bump"
+            else
+              NEXT_VERSION="0.1.0"
+              echo "⚠️ No tag found, starting at ${NEXT_VERSION}"
+            fi
+          fi
+
+          echo "next=${NEXT_VERSION}" >> $GITHUB_OUTPUT
+          echo "✅ Next version: ${NEXT_VERSION}"
+
+      - name: Create tag (no commit)
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          git tag "${NEXT_VERSION}"
+          git push origin "${NEXT_VERSION}"
+
+      - name: Create release branch from tag
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          RELEASE_BRANCH="release/${NEXT_VERSION}"
+          git branch "${RELEASE_BRANCH}" "${NEXT_VERSION}"
+          git push origin "${RELEASE_BRANCH}"
+          echo "✅ Created release branch: ${RELEASE_BRANCH}"
+
+      - name: Generate changelog for release body
+        id: changelog
+        env:
+          NEXT_VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          LAST_TAG=$(git tag --sort=-v:refname | sed -n '2p' || echo "")
+          if [[ -n "${LAST_TAG}" ]]; then
+            BODY=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            BODY=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "${BODY}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y gh
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.next }}
+          BODY: ${{ steps.changelog.outputs.body }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          gh release create "${VERSION}" \
+            --title "v${VERSION}" \
+            --notes "${BODY}" \
+            --target "${TARGET_SHA}"
+
+      - name: Job Summary
+        if: always()
+        run: |
+          echo "## 🏷️ Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔖 **Version** | \`${{ steps.version.outputs.next }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌿 **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 **Release branch** | \`release/${{ steps.version.outputs.next }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Triggered by** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 **Release** | [View](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.next }}) |" >> $GITHUB_STEP_SUMMARY

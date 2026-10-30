@@ -1,0 +1,95 @@
+version: 2
+updates:
+  # ---------------------------------------------------------------------------
+  # Python (pip) — Lambda runtime, container Lambda, and dev tooling
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: /app_src/app/lambdas
+    target-branch: develop
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    groups:
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /app_src/app/lambdas_container/libreoffice_converter
+    target-branch: develop
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /.devcontainer
+    target-branch: develop
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      pip-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — workflows and composite actions
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # Docker — container Lambda base image (LibreOffice converter)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: docker
+    directory: /app_src/app/lambdas_container/libreoffice_converter
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+
+  # ---------------------------------------------------------------------------
+  # Terraform — HashiCorp providers only. The grand_org JFrog InnerSource modules
+  # are pinned via var.jfrog_module_versions and are not updated by Dependabot.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: terraform
+    directory: /app_terraform
+    target-branch: develop
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      terraform-providers:
+        patterns:
+          - "*"

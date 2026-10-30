@@ -1,0 +1,6 @@
+# All files — fallback owner
+*   @grand_org/GenAI_Automation_team-admins
+
+# Restrict on sources & terraform :
+/app_terraform/      @grand_org/GenAI_Automation_team-admins @grand_org/GenAI_Automation_team-developers
+/app_src/            @grand_org/GenAI_Automation_team-admins @grand_org/GenAI_Automation_team-developers

@@ -1,0 +1,8 @@
+---
+model_id: "eu.anthropic.claude-sonnet-5"
+max_tokens: 32000
+temperature: 1
+top_p: null
+stop_sequences:
+  - "Human:"
+additional_model_request_fields: '{"thinking": {"type": "adaptive"}, "output_config": {"effort": "medium"}}'

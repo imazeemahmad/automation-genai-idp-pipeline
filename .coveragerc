@@ -1,0 +1,6 @@
+[run]
+source = app_src/app/lambdas
+relative_files = true
+
+[xml]
+output = coverage.xml
